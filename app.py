@@ -1,7 +1,11 @@
 from flask import Flask, request, Response
 from datetime import datetime
+from flask_cors import CORS
 import sqlite3
 import os
+
+app = Flask(__name__)
+CORS(app)
 
 # Password for viewing /names
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "letmein")
