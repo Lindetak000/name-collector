@@ -1,12 +1,16 @@
 from flask import Flask, request
+from datetime import datetime
 import sqlite3
 import os
+from flask import Response
+
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "letmein")  # default password is "letmein"
 
 app = Flask(__name__)
 
 conn = sqlite3.connect('visitors.db', check_same_thread=False)
 c = conn.cursor()
-c.execute('CREATE TABLE IF NOT EXISTS visitors (id INTEGER PRIMARY KEY, name TEXT)')
+c.execute('CREATE TABLE IF NOT EXISTS visitors (id INTEGER PRIMARY KEY, name TEXT, timestamp TEXT)')
 conn.commit()
 
 @app.route("/store-name", methods=["POST"])
@@ -14,7 +18,8 @@ def store_name():
     data = request.get_json()
     name = data.get("name")
     if name:
-        c.execute("INSERT INTO visitors (name) VALUES (?)", (name,))
+    timestamp = datetime.utcnow().isoformat()
+    c.execute("INSERT INTO visitors (name, timestamp) VALUES (?, ?)", (name, timestamp))
         conn.commit()
         return {"status": "success"}, 200
     return {"status": "no name received"}, 400
@@ -26,26 +31,20 @@ if __name__ == "__main__":
 
 @app.route("/names", methods=["GET"])
 def get_names():
-    c.execute("SELECT name FROM visitors")
-    rows = c.fetchall()
-    names = [row[0] for row in rows]
+    password = request.args.get("password")
+    if password != ADMIN_PASSWORD:
+        return Response("Unauthorized", status=401)
 
-    # Return a simple HTML page with the names listed
+    c.execute("SELECT name, timestamp FROM visitors")
+    rows = c.fetchall()
+
     html = "<h2>Visitors:</h2><ul>"
-    for name in names:
-        html += f"<li>{name}</li>"
+    for name, timestamp in rows:
+        html += f"<li>{name} — {timestamp}</li>"
     html += "</ul>"
 
     return html
-@app.route("/names", methods=["GET"])
-def get_names():
-    c.execute("SELECT name FROM visitors")
-    rows = c.fetchall()
-    names = [row[0] for row in rows]
 
-    # Return a simple HTML page with the names listed
-    html = "<h2>Visitors:</h2><ul>"
-    for name in names:
         html += f"<li>{name}</li>"
     html += "</ul>"
 
