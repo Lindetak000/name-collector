@@ -1,16 +1,13 @@
-from flask import Flask, request, Response
+from flask import Flask, request
+from flask_cors import CORS  # Import Flask-CORS to handle cross-origin requests
 from datetime import datetime
-from flask_cors import CORS
 import sqlite3
 import os
+from flask import Response
 
+# Create the Flask app and enable CORS
 app = Flask(__name__)
-CORS(app)
-
-# Password for viewing /names
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "letmein")
-
-app = Flask(__name__)
+CORS(app)  # Allow all cross-origin requests (for now)
 
 # Set up the SQLite database
 conn = sqlite3.connect('visitors.db', check_same_thread=False)
@@ -30,64 +27,24 @@ def store_name():
         return {"status": "success"}, 200
     return {"status": "no name received"}, 400
 
-# Route to view names (protected with password)
+# Route to view stored names
 @app.route("/names", methods=["GET"])
 def get_names():
     password = request.args.get("password")
-    if password != ADMIN_PASSWORD:
+    if password != os.environ.get("ADMIN_PASSWORD", "letmein"):
         return Response("Unauthorized", status=401)
 
     c.execute("SELECT name, timestamp FROM visitors")
     rows = c.fetchall()
 
-    html = """
-    <html>
-    <head>
-        <title>Visitors</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #f0f4f8;
-                padding: 2rem;
-                color: #333;
-            }
-            h2 {
-                color: #222;
-                margin-bottom: 1rem;
-            }
-            ul {
-                list-style-type: none;
-                padding: 0;
-            }
-            li {
-                background: white;
-                margin-bottom: 1rem;
-                padding: 1rem;
-                border-radius: 8px;
-                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-            }
-            small {
-                color: #777;
-            }
-        </style>
-    </head>
-    <body>
-        <h2>Visitor Log</h2>
-        <ul>
-    """
-
+    html = "<h2>Visitors:</h2><ul>"
     for name, timestamp in rows:
-        html += f"<li><strong>{name}</strong><br><small>{timestamp}</small></li>"
-
-    html += """
-        </ul>
-    </body>
-    </html>
-    """
+        html += f"<li>{name} — {timestamp}</li>"
+    html += "</ul>"
 
     return html
 
-# Run the app (used by Render)
+# Run the Flask app on Render (use the port from the environment or default to 5000)
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5000))  # Use Render's port or default to 5000
     app.run(host='0.0.0.0', port=port)
